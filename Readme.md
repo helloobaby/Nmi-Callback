@@ -1,5 +1,7 @@
-With hypervisor,no bosd
+one method to detect intel hypervisor.  
 
-no hypervisor, bosd
 
-![Image Text](https://github.com/helloobaby/Nmi-Callback/blob/master/kkkkk.png)
+
+
+
+project has one hard sig(HalpApic1WriteIcr). make sure to modify it

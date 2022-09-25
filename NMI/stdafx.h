@@ -9,18 +9,3 @@
 #include <cstdio>
 #pragma warning(pop)
 
-inline ULONG Log(const char* format, ...)
-{
-	char buffer[256];
-
-	va_list ap;
-	__va_start(&ap, format);
-	vsprintf(buffer, format, ap);
-
-	return DbgPrintEx(DPFLTR_DEFAULT_ID, DPFLTR_ERROR_LEVEL, buffer);
-}
-
-//
-//²»ÒªÓÃ__FUNCTION__
-//
-#define TRACE(x) Log("[TRACE]%s %d\n",__func__,__LINE__)

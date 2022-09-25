@@ -9,10 +9,12 @@ using  HalpApic1WriteIcr_t = ULONG_PTR(*)(int a1,int a2);
 PVOID NmiCtx = nullptr;
 
 ULONG_PTR KernelBase = NULL;
+ULONG_PTR CurProcessorNumber;
 
 //Hard Signature! in hal.dll
-HalSendNmi_t HalSendNmi = (HalSendNmi_t)0xfffff8071a8aaf60;
-HalpApic1WriteIcr_t HalpApic1WriteIcr = (HalpApic1WriteIcr_t)0xfffff8071a87fa90;
+//.reload hal 
+//u hal!HalpApic1WriteIcr
+HalpApic1WriteIcr_t HalpApic1WriteIcr = (HalpApic1WriteIcr_t)0xfffff8054628ca90;
 
 //intel volume3 p395
 struct x1Apic
@@ -49,10 +51,11 @@ NmiCb(
 	_In_ BOOLEAN Handled
 )
 {
-	Log("NMI test\n");
-
 	ULONG_PTR t = 0;
-	__vmx_vmread(0x00002800, &t);
+	__vmx_vmread(0x00002800, &t); // bug check in non vm-root mode
+
+	DbgPrintEx(DPFLTR_DEFAULT_ID, DPFLTR_ERROR_LEVEL, ("[+] nmi callback excute in vm-root mode\n"));
+
 
 	return true;
 }
@@ -62,13 +65,16 @@ ipiCall(
 	_In_ ULONG_PTR Argument
 )
 {
-	Log("ipicall\n");
+	if (KeGetCurrentProcessorNumber() == CurProcessorNumber)
+		return true;
+
+	DbgPrintEx(DPFLTR_DEFAULT_ID, DPFLTR_ERROR_LEVEL, "[+] current processor number %d\n", KeGetCurrentProcessorNumber());
+	DbgPrintEx(DPFLTR_DEFAULT_ID, DPFLTR_ERROR_LEVEL, "[+] ipi call excute cpuid to force vm-exit\n");
 
 	//force vm-exit
 
-
-		int a[4] = {};
-		__cpuid(a, 0);
+	int a[4] = {};
+	__cpuid(a, 0);
 	
 	return true;
 }
@@ -86,15 +92,14 @@ EXTERN_C NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegPa
 	apic.low.DestinationMode = 1;
 	apic.low.DestinationShorthand = 3;//11b excluding self     10 all processors
 
+	_disable();
+	CurProcessorNumber = KeGetCurrentProcessorNumber();
 	KeIpiGenericCall(ipiCall, 0);
-
+	_enable();
 	//
 	//how to trigger Nmi Interrupt?
 	//
 	HalpApic1WriteIcr(apic.high.value, apic.low.value);
-
-	//ed fffff807`19f7e7a4 90909090
-	//eb fffff807`19f7e7a4+4 90
 	
 	
 	return STATUS_SUCCESS;
